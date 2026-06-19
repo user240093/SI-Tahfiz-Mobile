@@ -13,6 +13,8 @@ Aplikasi mobile manajemen program Tahfiz Al-Qur'an untuk MTs TQ Jamilurrahman Yo
 | SDGs Pendukung | SDG 9 — Industry & Innovation (Digitalisasi Proses) |
 | Mata Kuliah | Teknologi Mobile |
 | NIM | 2400016067 |
+| NIM | 2400016089 |
+| NIM | 2400016070 |
 | Tech Stack | Flutter, Supabase (PostgreSQL, Auth, Storage) |
 
 ---
