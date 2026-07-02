@@ -1,63 +1,98 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../../core/app_provider.dart';
-import '../../core/theme.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/widgets/responsive_layout.dart';
-import '../auth/login_screen.dart';
+import '../../core/widgets/custom_app_bar.dart';
 import 'wali_home.dart';
+import 'wali_tikrar.dart';
 import 'wali_chat_list.dart';
-import 'wali_izin.dart';
-import 'wali_pengumuman.dart';
 
-class WaliDashboard extends StatefulWidget {
-  const WaliDashboard({super.key});
+class WaliDashboard extends ConsumerStatefulWidget {
+  final int initialIndex;
+  const WaliDashboard({super.key, this.initialIndex = 0});
 
   @override
-  State<WaliDashboard> createState() => _WaliDashboardState();
+  ConsumerState<WaliDashboard> createState() => _WaliDashboardState();
 }
 
-class _WaliDashboardState extends State<WaliDashboard> {
-  int _currentIndex = 0;
+class _WaliDashboardState extends ConsumerState<WaliDashboard> {
+  late int _currentIndex;
 
   final List<Widget> _pages = [
     const WaliHome(),
-    const WaliPengumuman(),
+    const Center(child: Text('Panel Setoran Manzil Anak (Placeholder)')),
+    const WaliTikrar(),
     const WaliChatList(),
-    const WaliIzin(),
   ];
 
   @override
-  Widget build(BuildContext context) {
-    final provider = Provider.of<AppProvider>(context);
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex;
+  }
 
+  @override
+  void didUpdateWidget(covariant WaliDashboard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialIndex != widget.initialIndex) {
+      setState(() {
+        _currentIndex = widget.initialIndex;
+      });
+    }
+  }
+
+  void _onNavigation(int index) {
+    String route;
+    switch (index) {
+      case 0:
+        route = '/ortu/beranda';
+        break;
+      case 1:
+        route = '/ortu/manzil';
+        break;
+      case 2:
+        route = '/ortu/tikrar';
+        break;
+      case 3:
+        route = '/ortu/pesan';
+        break;
+      default:
+        route = '/ortu/beranda';
+    }
+    Navigator.pushReplacementNamed(context, route);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Wali Santri Panel'),
-        backgroundColor: AppTheme.roleWaliColor,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout_rounded, color: Colors.white),
-            onPressed: () {
-              provider.logout();
-              Navigator.of(context).pushReplacement(
-                MaterialPageRoute(builder: (_) => const LoginScreen()),
-              );
-            },
-          )
-        ],
+      appBar: buildCustomAppBar(
+        context: context,
+        role: 'orang_tua',
+        isNested: false,
       ),
       body: ResponsiveLayout(
         currentIndex: _currentIndex,
-        onIndexChanged: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
+        onIndexChanged: _onNavigation,
         navItems: [
-          ResponsiveNavItem(icon: Icons.home_outlined, activeIcon: Icons.home_rounded, label: 'Beranda'),
-          ResponsiveNavItem(icon: Icons.campaign_outlined, activeIcon: Icons.campaign_rounded, label: 'Pengumuman'),
-          ResponsiveNavItem(icon: Icons.chat_bubble_outline, activeIcon: Icons.chat_bubble_rounded, label: 'Chat Murobbi'),
-          ResponsiveNavItem(icon: Icons.edit_document, activeIcon: Icons.edit_document, label: 'Kirim Izin'),
+          ResponsiveNavItem(
+            icon: Icons.home_outlined,
+            activeIcon: Icons.home_rounded,
+            label: 'Beranda',
+          ),
+          ResponsiveNavItem(
+            icon: Icons.menu_book_outlined,
+            activeIcon: Icons.menu_book_rounded,
+            label: 'Manzil',
+          ),
+          ResponsiveNavItem(
+            icon: Icons.warning_amber_outlined,
+            activeIcon: Icons.warning_rounded,
+            label: 'Tikrar',
+          ),
+          ResponsiveNavItem(
+            icon: Icons.chat_bubble_outline,
+            activeIcon: Icons.chat_bubble_rounded,
+            label: 'Pesan',
+          ),
         ],
         mobileBody: _pages[_currentIndex],
       ),

@@ -1,33 +1,36 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../../core/app_provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/providers/auth_provider.dart';
+import '../../core/providers/pesan_provider.dart';
 import '../../core/theme.dart';
 
-class ChatScreen extends StatefulWidget {
+class ChatScreen extends ConsumerStatefulWidget {
   final String peerId;
   final String peerName;
 
   const ChatScreen({super.key, required this.peerId, required this.peerName});
 
   @override
-  State<ChatScreen> createState() => _ChatScreenState();
+  ConsumerState<ChatScreen> createState() => _ChatScreenState();
 }
 
-class _ChatScreenState extends State<ChatScreen> {
+class _ChatScreenState extends ConsumerState<ChatScreen> {
   final _messageController = TextEditingController();
 
   void _sendMessage() {
     if (_messageController.text.isNotEmpty) {
-      Provider.of<AppProvider>(context, listen: false).sendMessage(widget.peerId, _messageController.text);
-      _messageController.clear();
+      final senderId = ref.read(authProvider)?.id;
+      if (senderId != null) {
+        ref.read(pesanProvider.notifier).sendMessage(senderId, widget.peerId, _messageController.text);
+        _messageController.clear();
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final provider = Provider.of<AppProvider>(context);
-    final messages = provider.getChatHistory(widget.peerId);
-    final myId = provider.currentUser?.id;
+    final messages = ref.watch(chatHistoryProvider(widget.peerId));
+    final myId = ref.watch(authProvider)?.id;
 
     return Scaffold(
       appBar: AppBar(
@@ -97,7 +100,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 ),
               ],
             ),
-          )
+          ),
         ],
       ),
     );

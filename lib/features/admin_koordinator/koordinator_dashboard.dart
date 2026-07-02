@@ -1,66 +1,149 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../../core/app_provider.dart';
-import '../../core/theme.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/text_styles.dart';
 import '../../core/widgets/responsive_layout.dart';
-import '../auth/login_screen.dart';
+import '../../core/widgets/custom_app_bar.dart';
 import 'koordinator_home.dart';
-import 'koordinator_rekap.dart';
-import 'koordinator_pengumuman.dart';
-import 'koordinator_izin.dart';
-import 'koordinator_tikrar.dart';
+import 'koordinator_ukj_approval.dart';
+import 'koordinator_lainnya_grid.dart';
 
-class KoordinatorDashboard extends StatefulWidget {
-  const KoordinatorDashboard({super.key});
+class KoordinatorDashboard extends ConsumerStatefulWidget {
+  final int initialIndex;
+  const KoordinatorDashboard({super.key, this.initialIndex = 0});
 
   @override
-  State<KoordinatorDashboard> createState() => _KoordinatorDashboardState();
+  ConsumerState<KoordinatorDashboard> createState() => _KoordinatorDashboardState();
 }
 
-class _KoordinatorDashboardState extends State<KoordinatorDashboard> {
-  int _currentIndex = 0;
+class _KoordinatorDashboardState extends ConsumerState<KoordinatorDashboard> {
+  late int _currentIndex;
 
   final List<Widget> _pages = [
     const KoordinatorHome(),
-    const KoordinatorRekap(),
-    const KoordinatorPengumuman(),
-    const KoordinatorIzin(),
-    const KoordinatorTikrar(),
+    const KoordinatorUkjApproval(),
+    const SizedBox(), // Dummy for Kelola
+    const KoordinatorLainnyaGrid(),
   ];
 
   @override
-  Widget build(BuildContext context) {
-    final provider = Provider.of<AppProvider>(context);
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex;
+  }
 
+  @override
+  void didUpdateWidget(covariant KoordinatorDashboard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialIndex != widget.initialIndex) {
+      setState(() {
+        _currentIndex = widget.initialIndex;
+      });
+    }
+  }
+
+  void _showKelolaBottomSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                child: Text(
+                  'Kelola Program',
+                  style: AppTextStyles.h3,
+                ),
+              ),
+              const Divider(),
+              ListTile(
+                leading: const Icon(Icons.calendar_today_rounded, color: Color(0xFF10B981)),
+                title: Text('Syahrul Quran', style: AppTextStyles.h5),
+                subtitle: Text('Atur tanggal mulai & selesai Syahrul Quran', style: AppTextStyles.bodySmall),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.pushNamed(context, '/koordinator/kelola/syahrul-quran');
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.view_week_rounded, color: Color(0xFF10B981)),
+                title: Text('Pekan Murajaah', style: AppTextStyles.h5),
+                subtitle: Text('Atur tanggal & target Pekan Murajaah', style: AppTextStyles.bodySmall),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.pushNamed(context, '/koordinator/kelola/pekan-murajaah');
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.grade_rounded, color: Color(0xFF10B981)),
+                title: Text('Grade Santri', style: AppTextStyles.h5),
+                subtitle: Text('Ubah grade santri secara manual', style: AppTextStyles.bodySmall),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.pushNamed(context, '/koordinator/kelola/grade');
+                },
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _onNavigation(int index) {
+    if (index == 2) {
+      _showKelolaBottomSheet(context);
+      return;
+    }
+
+    if (index == 3) {
+      setState(() {
+        _currentIndex = 3;
+      });
+      return;
+    }
+
+    String route = index == 0 ? '/koordinator/beranda' : '/koordinator/ukj';
+    Navigator.pushReplacementNamed(context, route);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Admin Panel'),
-        backgroundColor: AppTheme.roleKoordinatorColor,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout_rounded, color: Colors.white),
-            onPressed: () {
-              provider.logout();
-              Navigator.of(context).pushReplacement(
-                MaterialPageRoute(builder: (_) => const LoginScreen()),
-              );
-            },
-          )
-        ],
+      appBar: buildCustomAppBar(
+        context: context,
+        role: 'koordinator',
+        isNested: false,
       ),
       body: ResponsiveLayout(
         currentIndex: _currentIndex,
-        onIndexChanged: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
+        onIndexChanged: _onNavigation,
         navItems: [
-          ResponsiveNavItem(icon: Icons.dashboard_outlined, activeIcon: Icons.dashboard_rounded, label: 'Dashboard'),
-          ResponsiveNavItem(icon: Icons.analytics_outlined, activeIcon: Icons.analytics_rounded, label: 'Rekap Nilai'),
-          ResponsiveNavItem(icon: Icons.campaign_outlined, activeIcon: Icons.campaign_rounded, label: 'Pengumuman'),
-          ResponsiveNavItem(icon: Icons.mark_email_unread_outlined, activeIcon: Icons.mark_email_read_rounded, label: 'Izin Santri'),
-          ResponsiveNavItem(icon: Icons.warning_amber_rounded, activeIcon: Icons.warning_rounded, label: 'Tikrar'),
+          ResponsiveNavItem(
+            icon: Icons.dashboard_outlined,
+            activeIcon: Icons.dashboard_rounded,
+            label: 'Beranda',
+          ),
+          ResponsiveNavItem(
+            icon: Icons.verified_outlined,
+            activeIcon: Icons.verified_rounded,
+            label: 'UKJ',
+          ),
+          ResponsiveNavItem(
+            icon: Icons.tune_outlined,
+            activeIcon: Icons.tune_rounded,
+            label: 'Kelola',
+          ),
+          ResponsiveNavItem(
+            icon: Icons.grid_view_outlined,
+            activeIcon: Icons.grid_view_rounded,
+            label: 'Lainnya',
+          ),
         ],
         mobileBody: _pages[_currentIndex],
       ),

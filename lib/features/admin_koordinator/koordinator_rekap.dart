@@ -1,75 +1,113 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import '../../core/app_provider.dart';
-import '../../core/theme.dart';
+import '../../core/providers/santri_provider.dart';
+import '../../core/providers/uas_provider.dart';
+import '../../core/text_styles.dart';
+import '../../core/widgets/app_card.dart';
+import '../../core/widgets/custom_app_bar.dart';
+import '../../core/widgets/error_state_widget.dart';
 
-class KoordinatorRekap extends StatelessWidget {
+class KoordinatorRekap extends ConsumerWidget {
   const KoordinatorRekap({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final provider = Provider.of<AppProvider>(context);
-    final santriList = provider.allSantri;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final santriAsync = ref.watch(santriProvider);
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(24),
-      itemCount: santriList.length,
-      itemBuilder: (context, index) {
-        final santri = santriList[index];
-        final nilai = provider.getNilai(santri.id);
+    final content = santriAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => ErrorStateWidget(
+        message: e.toString(),
+        onRetry: () => ref.refresh(santriProvider),
+      ),
+      data: (santriList) {
+        if (santriList.isEmpty) {
+          return Center(child: Text('Belum ada data santri.', style: AppTextStyles.body));
+        }
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: santriList.length,
+          itemBuilder: (context, index) {
+            final santri = santriList[index];
+            final nilaiAsync = ref.watch(nilaiForSantriProvider(santri['id']));
 
-        return Card(
-          margin: const EdgeInsets.only(bottom: 16),
-          child: Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    CircleAvatar(
-                      backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
-                      child: Text(santri.name[0], style: const TextStyle(color: AppTheme.primaryColor, fontWeight: FontWeight.bold)),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(santri.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                          Text('Kelas: ${santri.kelas} | NIS: ${santri.nis}', style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(color: Colors.grey.shade50, borderRadius: BorderRadius.circular(16)),
-                  child: nilai != null ? Column(
+            return AppCard(
+              role: 'koordinator',
+              margin: const EdgeInsets.only(bottom: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
                     children: [
-                      _buildNilaiRow('Setoran (40%)', nilai.setoranPercent),
-                      _buildNilaiRow('UAS (40%)', nilai.uasPercent),
-                      _buildNilaiRow('Akhlaq (10%)', nilai.akhlaqPercent),
-                      _buildNilaiRow('Kehadiran (10%)', nilai.kehadiranPercent),
-                      const Divider(),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text('Total Nilai Akhir', style: TextStyle(fontWeight: FontWeight.bold)),
-                          Text(nilai.totalNilai.toStringAsFixed(1), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: AppTheme.primaryColor)),
-                        ],
+                      CircleAvatar(
+                        backgroundColor: const Color(0xFF10B981).withOpacity(0.1),
+                        child: Text(
+                          (santri['nama_lengkap'] ?? '?')[0],
+                          style: const TextStyle(color: Color(0xFF10B981), fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(santri['nama_lengkap'] ?? '', style: AppTextStyles.h4),
+                            const SizedBox(height: 2),
+                            Text('Kelas: ${santri['kelas']} | ID: ${santri['id'].toString().substring(0, 8)}', style: AppTextStyles.bodySmall),
+                          ],
+                        ),
                       ),
                     ],
-                  ) : const Text('Nilai belum direkap.', style: TextStyle(fontStyle: FontStyle.italic, color: Colors.grey)),
-                )
-              ],
-            ),
-          ),
-        ).animate().fadeIn(delay: (100 * index).ms).slideX(begin: 0.1);
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF9FAFB),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFFE5E7EB)),
+                    ),
+                    child: nilaiAsync.when(
+                      loading: () => const Center(child: SizedBox(height: 24, width: 24, child: CircularProgressIndicator(strokeWidth: 2))),
+                      error: (e, _) => Text('Gagal menghitung nilai: $e', style: AppTextStyles.body.copyWith(color: Colors.red)),
+                      data: (nilai) => nilai != null ? Column(
+                        children: [
+                          _buildNilaiRow('Setoran (40%)', nilai['setoranPercent'] ?? 0.0),
+                          _buildNilaiRow('UAS (40%)', nilai['uasPercent'] ?? 0.0),
+                          _buildNilaiRow('Akhlaq (10%)', nilai['akhlaqPercent'] ?? 0.0),
+                          _buildNilaiRow('Kehadiran (10%)', nilai['kehadiranPercent'] ?? 0.0),
+                          const Divider(height: 24),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('Total Nilai Akhir', style: AppTextStyles.h5),
+                              Text(
+                                (nilai['totalNilai'] ?? 0.0).toStringAsFixed(1),
+                                style: AppTextStyles.h3.copyWith(color: const Color(0xFF10B981)),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ) : Text('Nilai belum direkap.', style: AppTextStyles.body.copyWith(fontStyle: FontStyle.italic)),
+                    ),
+                  )
+                ],
+              ),
+            ).animate().fadeIn(delay: (100 * index).ms).slideX(begin: 0.1);
+          },
+        );
       },
+    );
+
+    return Scaffold(
+      appBar: buildCustomAppBar(
+        context: context,
+        role: 'koordinator',
+        isNested: true,
+        title: 'Rekap Nilai',
+      ),
+      body: content,
     );
   }
 
@@ -79,8 +117,8 @@ class KoordinatorRekap extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(color: AppTheme.textDark)),
-          Text(value.toStringAsFixed(1), style: const TextStyle(fontWeight: FontWeight.w600)),
+          Text(label, style: AppTextStyles.body),
+          Text(value.toStringAsFixed(1), style: AppTextStyles.h6),
         ],
       ),
     );
