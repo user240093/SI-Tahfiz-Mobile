@@ -2,9 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/widgets/responsive_layout.dart';
 import '../../core/widgets/custom_app_bar.dart';
-import 'wali_home.dart';
-import 'wali_tikrar.dart';
-import 'wali_chat_list.dart';
+import '../../core/providers/auth_provider.dart';
+import '../../core/providers/ortu_provider.dart';
+import '../../core/services/pengumuman_service.dart';
+import 'screens/ortu_beranda_screen.dart';
+import 'screens/ortu_tikrar_screen.dart';
+import 'screens/ortu_pesan_screen.dart';
+import 'screens/ortu_manzil_screen.dart';
 
 class WaliDashboard extends ConsumerStatefulWidget {
   final int initialIndex;
@@ -18,16 +22,25 @@ class _WaliDashboardState extends ConsumerState<WaliDashboard> {
   late int _currentIndex;
 
   final List<Widget> _pages = [
-    const WaliHome(),
-    const Center(child: Text('Panel Setoran Manzil Anak (Placeholder)')),
-    const WaliTikrar(),
-    const WaliChatList(),
+    const OrtuBerandaScreen(),
+    const OrtuManzilScreen(),
+    const OrtuTikrarScreen(isNested: true),
+    const OrtuPesanScreen(isNested: true),
   ];
 
   @override
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final user = ref.read(authProvider);
+      if (user != null) {
+        final userId = user.supabaseUser?.id ?? user.id;
+        final userRole = user.roleString ?? 'orang_tua';
+        PengumumanService.checkAndShowPengumuman(context, userRole, userId);
+        ref.read(ortuProvider.notifier).loadAnakList(userId);
+      }
+    });
   }
 
   @override

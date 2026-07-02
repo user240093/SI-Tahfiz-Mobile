@@ -19,6 +19,81 @@ class UasNotifier extends StateNotifier<AsyncValue<List<Map<String, dynamic>>>> 
     }
   }
 
+  Future<List<Map<String, dynamic>>> fetchUasByHalaqah(String halaqahId, String semester, String tahunAjaran) async {
+    try {
+      final uasList = await supabase
+          .from('uas')
+          .select('*, uas_detail(nomor_juz, nilai), santri!inner(nama_lengkap, halaqah_id)')
+          .eq('santri.halaqah_id', halaqahId)
+          .eq('semester', semester)
+          .eq('tahun_ajaran', tahunAjaran);
+      return List<Map<String, dynamic>>.from(uasList);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<void> upsertUas(String santriId, List<Map<String, dynamic>> juzList, String semester, String tahunAjaran) async {
+    try {
+      final currentUserId = supabase.auth.currentUser?.id;
+      if (currentUserId == null) throw Exception('User not logged in');
+
+      final uasRecord = await supabase
+          .from('uas')
+          .upsert({
+            'santri_id': santriId,
+            'pengampu_id': currentUserId,
+            'semester': semester,
+            'tahun_ajaran': tahunAjaran,
+            'updated_at': DateTime.now().toIso8601String(),
+          }, onConflict: 'santri_id,semester,tahun_ajaran')
+          .select()
+          .single();
+
+      final uasId = uasRecord['id'];
+
+      // Delete details that are not in the new juzList to support row deletion
+      final currentNomorJuzs = juzList.map((j) => j['nomor_juz'] as int).toList();
+      if (currentNomorJuzs.isNotEmpty) {
+        await supabase
+            .from('uas_detail')
+            .delete()
+            .eq('uas_id', uasId)
+            .not('nomor_juz', 'in', '(${currentNomorJuzs.join(",")})');
+      } else {
+        await supabase.from('uas_detail').delete().eq('uas_id', uasId);
+      }
+
+      final details = juzList.map((j) => {
+        'uas_id': uasId,
+        'nomor_juz': j['nomor_juz'],
+        'nilai': j['nilai'],
+      }).toList();
+
+      if (details.isNotEmpty) {
+        await supabase.from('uas_detail').upsert(details, onConflict: 'uas_id,nomor_juz');
+      }
+
+      // Calculate nilai_akhir if all juz have values
+      final allFilled = juzList.every((j) => j['nilai'] != null);
+      if (allFilled && juzList.isNotEmpty) {
+        final avg = juzList.map((j) => (j['nilai'] as num).toDouble()).reduce((a, b) => a + b) / juzList.length;
+        final rounded = (avg * 10).round() / 10;
+        await supabase.from('uas')
+            .update({'nilai_akhir': rounded})
+            .eq('id', uasId);
+      } else {
+        await supabase.from('uas')
+            .update({'nilai_akhir': null})
+            .eq('id', uasId);
+      }
+
+      await fetchUas();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   Future<bool> addUas(Map<String, dynamic> uasData, List<Map<String, dynamic>> details) async {
     try {
       final res = await supabase.from('uas').upsert(uasData).select('id').single();
@@ -49,7 +124,7 @@ final nilaiForSantriProvider = Provider.family<AsyncValue<Map<String, dynamic>?>
   final uasAsync = ref.watch(uasProvider);
   final akhlaqAsync = ref.watch(akhlaqProvider);
   final setoranAsync = ref.watch(setoranProvider);
-  final absensiAsync = ref.watch(absensiProvider);
+  final absensiAsync = ref.watch(allAbsensiProvider);
 
   if (uasAsync is AsyncData && akhlaqAsync is AsyncData && setoranAsync is AsyncData && absensiAsync is AsyncData) {
     final uasList = uasAsync.value ?? [];

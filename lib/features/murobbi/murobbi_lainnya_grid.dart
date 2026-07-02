@@ -1,12 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/text_styles.dart';
 import '../../core/widgets/app_card.dart';
+import '../../core/providers/konfigurasi_provider.dart';
 
-class MurobbiLainnyaGrid extends StatelessWidget {
+class MurobbiLainnyaGrid extends ConsumerWidget {
   const MurobbiLainnyaGrid({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final configAsync = ref.watch(konfigurasiProvider);
+    final isAkhlaqActive = configAsync.maybeWhen(
+      data: (state) => state.konfigurasi?['fitur_akhlaq_aktif'] ?? false,
+      orElse: () => false,
+    );
+
     final List<Map<String, dynamic>> menuItems = [
       {
         'label': 'Tikrar & Manzil',
@@ -26,12 +34,13 @@ class MurobbiLainnyaGrid extends StatelessWidget {
         'route': '/pengampu/uas',
         'color': Colors.purple,
       },
-      {
-        'label': 'Akhlaq',
-        'icon': Icons.favorite_rounded,
-        'route': '/pengampu/akhlaq',
-        'color': Colors.red,
-      },
+      if (isAkhlaqActive)
+        {
+          'label': 'Akhlaq',
+          'icon': Icons.favorite_rounded,
+          'route': '/pengampu/akhlaq',
+          'color': Colors.red,
+        },
       {
         'label': 'Pesan',
         'icon': Icons.chat_bubble_rounded,

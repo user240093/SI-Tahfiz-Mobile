@@ -11,7 +11,8 @@ class SantriNotifier extends StateNotifier<AsyncValue<List<Map<String, dynamic>>
     try {
       final data = await supabase
           .from('santri')
-          .select('*, halaqah(nama_halaqah, pengampu_id), orang_tua(nama_lengkap)');
+          .select('*, halaqah(nama_halaqah, pengampu_id), orang_tua(nama_lengkap)')
+          .order('nama_lengkap');
       state = AsyncValue.data(List<Map<String, dynamic>>.from(data));
     } catch (e, stack) {
       state = AsyncValue.error(e.toString(), stack);
@@ -21,6 +22,35 @@ class SantriNotifier extends StateNotifier<AsyncValue<List<Map<String, dynamic>>
   Future<bool> addSantri(Map<String, dynamic> data) async {
     try {
       await supabase.from('santri').insert(data);
+      await fetchSantri();
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<bool> updateSantri(String id, Map<String, dynamic> data) async {
+    try {
+      await supabase.from('santri').update(data).eq('id', id);
+      await fetchSantri();
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<bool> deleteSantri(String id, String namaSantri) async {
+    try {
+      await supabase.from('santri').delete().eq('id', id);
+      
+      final currentUserId = supabase.auth.currentUser?.id;
+      if (currentUserId != null) {
+        await supabase.from('audit_trail').insert({
+          'user_id': currentUserId,
+          'aktivitas': 'Hapus santri: $namaSantri',
+        });
+      }
+
       await fetchSantri();
       return true;
     } catch (e) {

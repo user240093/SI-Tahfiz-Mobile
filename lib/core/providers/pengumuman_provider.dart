@@ -3,33 +3,43 @@ import '../supabase_client.dart';
 
 class PengumumanNotifier extends StateNotifier<AsyncValue<List<Map<String, dynamic>>>> {
   PengumumanNotifier() : super(const AsyncValue.loading()) {
-    fetchPengumuman();
+    fetchAllPengumuman();
   }
 
-  Future<void> fetchPengumuman() async {
+  Future<void> fetchAllPengumuman() async {
     state = const AsyncValue.loading();
     try {
-      final data = await supabase.from('pengumuman').select('*, profiles(nama_lengkap)');
+      final data = await supabase
+          .from('pengumuman')
+          .select('*, profiles(nama_lengkap)')
+          .order('created_at', ascending: false);
       state = AsyncValue.data(List<Map<String, dynamic>>.from(data));
     } catch (e, stack) {
       state = AsyncValue.error(e.toString(), stack);
     }
   }
 
-  Future<void> addAnnouncement(String title, String content, String authorName) async {
+  Future<void> insertPengumuman(String judul, String isi, List<String> targetRole) async {
     try {
-      // In database schema, pengumuman has dibuat_oleh (UUID)
-      // We will look up the current authenticated user's ID
       final myId = supabase.auth.currentUser?.id;
       if (myId == null) throw Exception('Not authenticated');
 
       await supabase.from('pengumuman').insert({
-        'judul': title,
-        'isi': content,
-        'target_role': ['pengampu', 'orang_tua', 'kepsek'],
+        'judul': judul,
+        'isi': isi,
+        'target_role': targetRole,
         'dibuat_oleh': myId,
       });
-      await fetchPengumuman();
+      await fetchAllPengumuman();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<void> deletePengumuman(String id) async {
+    try {
+      await supabase.from('pengumuman').delete().eq('id', id);
+      await fetchAllPengumuman();
     } catch (e) {
       rethrow;
     }
@@ -61,3 +71,4 @@ final sortedAnnouncementsProvider = Provider<AsyncValue<List<Map<String, dynamic
     return sorted;
   });
 });
+

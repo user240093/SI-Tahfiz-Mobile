@@ -2,12 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/widgets/responsive_layout.dart';
 import '../../core/widgets/custom_app_bar.dart';
-import 'tu_home.dart';
-import 'tu_data_santri.dart';
+import '../../core/providers/auth_provider.dart';
+import '../../core/services/pengumuman_service.dart';
+import 'screens/tu_akun_screen.dart';
+import 'screens/tu_data_tabs_screen.dart';
+import 'screens/tu_konfigurasi_screen.dart';
+import 'screens/tu_sistem_tabs_screen.dart';
 
 class TuDashboard extends ConsumerStatefulWidget {
   final int initialIndex;
-  const TuDashboard({super.key, this.initialIndex = 0});
+  final int initialTab;
+  const TuDashboard({super.key, this.initialIndex = 0, this.initialTab = 0});
 
   @override
   ConsumerState<TuDashboard> createState() => _TuDashboardState();
@@ -15,26 +20,30 @@ class TuDashboard extends ConsumerStatefulWidget {
 
 class _TuDashboardState extends ConsumerState<TuDashboard> {
   late int _currentIndex;
-
-  final List<Widget> _pages = [
-    const TuHome(),
-    const TuDataSantri(),
-    const Center(child: Text('Panel Konfigurasi Sistem (Placeholder)')),
-    const Center(child: Text('Panel Audit Trail (Placeholder)')),
-  ];
+  late int _currentTab;
 
   @override
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
+    _currentTab = widget.initialTab;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final user = ref.read(authProvider);
+      if (user != null) {
+        final userId = user.supabaseUser?.id ?? user.id;
+        final userRole = user.roleString ?? 'tu';
+        PengumumanService.checkAndShowPengumuman(context, userRole, userId);
+      }
+    });
   }
 
   @override
   void didUpdateWidget(covariant TuDashboard oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.initialIndex != widget.initialIndex) {
+    if (oldWidget.initialIndex != widget.initialIndex || oldWidget.initialTab != widget.initialTab) {
       setState(() {
         _currentIndex = widget.initialIndex;
+        _currentTab = widget.initialTab;
       });
     }
   }
@@ -62,6 +71,13 @@ class _TuDashboardState extends ConsumerState<TuDashboard> {
 
   @override
   Widget build(BuildContext context) {
+    final List<Widget> pages = [
+      const TuAkunScreen(),
+      TuDataTabsScreen(initialTab: _currentTab),
+      const TuKonfigurasiScreen(),
+      TuSistemTabsScreen(initialTab: _currentTab),
+    ];
+
     return Scaffold(
       appBar: buildCustomAppBar(
         context: context,
@@ -93,8 +109,9 @@ class _TuDashboardState extends ConsumerState<TuDashboard> {
             label: 'Sistem',
           ),
         ],
-        mobileBody: _pages[_currentIndex],
+        mobileBody: pages[_currentIndex],
       ),
     );
   }
 }
+

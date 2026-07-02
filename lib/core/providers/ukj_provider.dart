@@ -16,19 +16,142 @@ class UkjNotifier extends StateNotifier<AsyncValue<List<Map<String, dynamic>>>> 
     }
   }
 
-  Future<bool> addUkj(Map<String, dynamic> data) async {
+  Future<List<Map<String, dynamic>>> fetchUkjHalaqah(String halaqahId) async {
     try {
-      await supabase.from('ukj').insert(data);
-      await fetchUkj();
-      return true;
+      final data = await supabase
+          .from('ukj')
+          .select('*, santri!inner(nama_lengkap, halaqah_id)')
+          .eq('santri.halaqah_id', halaqahId)
+          .order('created_at', ascending: false);
+      return List<Map<String, dynamic>>.from(data);
     } catch (e) {
-      return false;
+      rethrow;
     }
   }
 
+  Future<List<Map<String, dynamic>>> fetchUkjPending() async {
+    try {
+      final data = await supabase
+          .from('ukj')
+          .select('*, santri(nama_lengkap, halaqah(nama_halaqah)), profiles!pengampu_id(nama_lengkap)')
+          .eq('status_approval', 'pending')
+          .order('created_at', ascending: false);
+      return List<Map<String, dynamic>>.from(data);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<void> insertUkj({
+    required String santriId,
+    required String pengampuId,
+    required int nomorJuz,
+    required int nilai,
+    required String statusSantri,
+  }) async {
+    try {
+      await supabase.from('ukj').insert({
+        'santri_id': santriId,
+        'pengampu_id': pengampuId,
+        'nomor_juz': nomorJuz,
+        'nilai': nilai,
+        'status_santri': statusSantri.toLowerCase(),
+        'status_approval': 'pending',
+      });
+      await fetchUkj();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<void> updateUkjPending({
+    required String ukjId,
+    required int nomorJuz,
+    required int nilai,
+    required String statusSantri,
+  }) async {
+    try {
+      await supabase
+          .from('ukj')
+          .update({
+            'nomor_juz': nomorJuz,
+            'nilai': nilai,
+            'status_santri': statusSantri.toLowerCase(),
+          })
+          .eq('id', ukjId)
+          .eq('status_approval', 'pending'); // GUARD
+      await fetchUkj();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<void> approveUkj(String ukjId, String koordinatorId) async {
+    try {
+      final ukjData = await supabase
+          .from('ukj')
+          .select('nomor_juz, santri(nama_lengkap)')
+          .eq('id', ukjId)
+          .single();
+      final santriNama = ukjData['santri']['nama_lengkap'] as String;
+      final nomorJuz = ukjData['nomor_juz'] as int;
+
+      await supabase
+          .from('ukj')
+          .update({
+            'status_approval': 'approved',
+            'approved_by': koordinatorId,
+            'approved_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', ukjId)
+          .eq('status_approval', 'pending'); // GUARD
+
+      await supabase.from('audit_trail').insert({
+        'user_id': koordinatorId,
+        'aktivitas': 'Approve UKJ: $santriNama Juz $nomorJuz',
+      });
+
+      await fetchUkj();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<void> rejectUkj(String ukjId, String alasan, String koordinatorId) async {
+    try {
+      final ukjData = await supabase
+          .from('ukj')
+          .select('nomor_juz, santri(nama_lengkap)')
+          .eq('id', ukjId)
+          .single();
+      final santriNama = ukjData['santri']['nama_lengkap'] as String;
+      final nomorJuz = ukjData['nomor_juz'] as int;
+
+      await supabase
+          .from('ukj')
+          .update({
+            'status_approval': 'rejected',
+            'alasan_penolakan': alasan,
+            'approved_by': koordinatorId,
+            'approved_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', ukjId)
+          .eq('status_approval', 'pending'); // GUARD
+
+      await supabase.from('audit_trail').insert({
+        'user_id': koordinatorId,
+        'aktivitas': 'Reject UKJ: $santriNama Juz $nomorJuz',
+      });
+
+      await fetchUkj();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // Backward compatibility method
   Future<void> updateUkjStatus(String ukjId, String newStatus) async {
     try {
-      // Postgres enum values are lowercase 'pending', 'approved', 'rejected'
       await supabase
           .from('ukj')
           .update({'status_approval': newStatus.toLowerCase()})

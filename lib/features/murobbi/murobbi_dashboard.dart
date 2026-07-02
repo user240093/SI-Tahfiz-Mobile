@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/widgets/responsive_layout.dart';
 import '../../core/widgets/custom_app_bar.dart';
+import '../../core/providers/auth_provider.dart';
+import '../../core/services/pengumuman_service.dart';
+import '../pengampu/screens/pengampu_setoran_screen.dart';
+import '../pengampu/screens/pengampu_absensi_screen.dart';
 import 'murobbi_beranda.dart';
-import 'murobbi_home.dart';
 import 'murobbi_lainnya_grid.dart';
 
 class MurobbiDashboard extends ConsumerStatefulWidget {
@@ -19,8 +22,8 @@ class _MurobbiDashboardState extends ConsumerState<MurobbiDashboard> {
 
   final List<Widget> _pages = [
     const MurobbiBeranda(),
-    const MurobbiHome(),
-    const Center(child: Text('Panel Absensi Harian (Placeholder)')),
+    const PengampuSetoranScreen(),
+    const PengampuAbsensiScreen(),
     const MurobbiLainnyaGrid(),
   ];
 
@@ -28,6 +31,14 @@ class _MurobbiDashboardState extends ConsumerState<MurobbiDashboard> {
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final user = ref.read(authProvider);
+      if (user != null) {
+        final userId = user.supabaseUser?.id ?? user.id;
+        final userRole = user.roleString ?? 'pengampu';
+        PengumumanService.checkAndShowPengumuman(context, userRole, userId);
+      }
+    });
   }
 
   @override

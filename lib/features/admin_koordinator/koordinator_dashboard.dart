@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/text_styles.dart';
 import '../../core/widgets/responsive_layout.dart';
 import '../../core/widgets/custom_app_bar.dart';
+import '../../core/providers/auth_provider.dart';
+import '../../core/services/pengumuman_service.dart';
 import 'koordinator_home.dart';
 import 'koordinator_ukj_approval.dart';
 import 'koordinator_lainnya_grid.dart';
@@ -29,6 +31,14 @@ class _KoordinatorDashboardState extends ConsumerState<KoordinatorDashboard> {
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final user = ref.read(authProvider);
+      if (user != null) {
+        final userId = user.supabaseUser?.id ?? user.id;
+        final userRole = user.roleString ?? 'koordinator';
+        PengumumanService.checkAndShowPengumuman(context, userRole, userId);
+      }
+    });
   }
 
   @override
@@ -105,6 +115,11 @@ class _KoordinatorDashboardState extends ConsumerState<KoordinatorDashboard> {
       setState(() {
         _currentIndex = 3;
       });
+      return;
+    }
+
+    if (index == 1) {
+      Navigator.pushNamed(context, '/koordinator/ukj');
       return;
     }
 

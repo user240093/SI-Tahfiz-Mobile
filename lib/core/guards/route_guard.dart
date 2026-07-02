@@ -71,6 +71,31 @@ class _RouteGuardState extends ConsumerState<RouteGuard> {
         return;
       }
 
+      // Enforce path-based role authorization
+      final routeName = ModalRoute.of(context)?.settings.name;
+      if (routeName != null) {
+        if (routeName.startsWith('/tu/') && role != 'tu') {
+          _redirectToCorrectDashboard(role);
+          return;
+        }
+        if (routeName.startsWith('/koordinator/') && role != 'koordinator') {
+          _redirectToCorrectDashboard(role);
+          return;
+        }
+        if (routeName.startsWith('/pengampu/') && role != 'pengampu') {
+          _redirectToCorrectDashboard(role);
+          return;
+        }
+        if (routeName.startsWith('/ortu/') && role != 'orang_tua') {
+          _redirectToCorrectDashboard(role);
+          return;
+        }
+        if (routeName.startsWith('/kepsek/') && role != 'kepsek') {
+          _redirectToCorrectDashboard(role);
+          return;
+        }
+      }
+
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -93,6 +118,32 @@ class _RouteGuardState extends ConsumerState<RouteGuard> {
     if (mounted) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         Navigator.pushReplacementNamed(context, '/maintenance');
+      });
+    }
+  }
+
+  void _redirectToCorrectDashboard(String? role) {
+    if (mounted) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        String targetRoute = '/login';
+        switch (role) {
+          case 'tu':
+            targetRoute = '/tu/akun';
+            break;
+          case 'koordinator':
+            targetRoute = '/koordinator/beranda';
+            break;
+          case 'pengampu':
+            targetRoute = '/pengampu/beranda';
+            break;
+          case 'kepsek':
+            targetRoute = '/kepsek/dashboard';
+            break;
+          case 'orang_tua':
+            targetRoute = '/ortu/beranda';
+            break;
+        }
+        Navigator.pushReplacementNamed(context, targetRoute);
       });
     }
   }

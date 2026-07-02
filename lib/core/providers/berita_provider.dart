@@ -25,6 +25,26 @@ class BeritaNotifier extends StateNotifier<AsyncValue<List<Map<String, dynamic>>
       return false;
     }
   }
+
+  Future<bool> updateBerita(String id, Map<String, dynamic> data) async {
+    try {
+      await supabase.from('berita_login').update(data).eq('id', id);
+      await fetchBerita();
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<bool> deleteBerita(String id) async {
+    try {
+      await supabase.from('berita_login').delete().eq('id', id);
+      await fetchBerita();
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
 }
 
 final beritaProvider = StateNotifierProvider<BeritaNotifier, AsyncValue<List<Map<String, dynamic>>>>((ref) {

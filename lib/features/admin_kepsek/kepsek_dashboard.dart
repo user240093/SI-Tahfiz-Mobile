@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/widgets/responsive_layout.dart';
 import '../../core/widgets/custom_app_bar.dart';
+import '../../core/providers/auth_provider.dart';
+import '../../core/services/pengumuman_service.dart';
 import 'kepsek_home.dart';
 import 'kepsek_kinerja.dart';
 
@@ -25,6 +27,14 @@ class _KepsekDashboardState extends ConsumerState<KepsekDashboard> {
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final user = ref.read(authProvider);
+      if (user != null) {
+        final userId = user.supabaseUser?.id ?? user.id;
+        final userRole = user.roleString ?? 'kepsek';
+        PengumumanService.checkAndShowPengumuman(context, userRole, userId);
+      }
+    });
   }
 
   @override

@@ -58,7 +58,7 @@ class _InputSetoranScreenState extends ConsumerState<InputSetoranScreen> {
 
       if (!mounted) return;
 
-      if (success) {
+      if (success['success'] == true) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Row(
@@ -81,7 +81,11 @@ class _InputSetoranScreenState extends ConsumerState<InputSetoranScreen> {
               children: [
                 const Icon(Icons.error, color: Colors.white),
                 const SizedBox(width: 8),
-                Expanded(child: Text('Gagal! Entri $_selectedType untuk hari ini sudah ada.')),
+                Expanded(
+                  child: Text(success['error'] == 'duplicate'
+                      ? 'Gagal! Entri $_selectedType untuk hari ini sudah ada.'
+                      : (success['error'] ?? 'Gagal menambahkan setoran.')),
+                ),
               ],
             ),
             backgroundColor: AppTheme.errorColor,

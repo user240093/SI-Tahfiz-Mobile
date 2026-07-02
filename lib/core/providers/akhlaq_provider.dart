@@ -16,6 +16,40 @@ class AkhlaqNotifier extends StateNotifier<AsyncValue<List<Map<String, dynamic>>
     }
   }
 
+  Future<List<Map<String, dynamic>>> fetchAkhlaqByHalaqah(String halaqahId, String semester, String tahunAjaran) async {
+    try {
+      final data = await supabase
+          .from('akhlaq')
+          .select('*, santri!inner(nama_lengkap, halaqah_id)')
+          .eq('santri.halaqah_id', halaqahId)
+          .eq('semester', semester)
+          .eq('tahun_ajaran', tahunAjaran);
+      return List<Map<String, dynamic>>.from(data);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<void> upsertAkhlaq(String santriId, int nilai, String semester, String tahunAjaran) async {
+    try {
+      final currentUserId = supabase.auth.currentUser?.id;
+      if (currentUserId == null) throw Exception('User not logged in');
+
+      await supabase.from('akhlaq').upsert({
+        'santri_id': santriId,
+        'pengampu_id': currentUserId,
+        'semester': semester,
+        'tahun_ajaran': tahunAjaran,
+        'nilai': nilai,
+        'updated_at': DateTime.now().toIso8601String(),
+      }, onConflict: 'santri_id,semester,tahun_ajaran');
+      
+      await fetchAkhlaq();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   Future<bool> addAkhlaq(Map<String, dynamic> data) async {
     try {
       await supabase.from('akhlaq').upsert(data, onConflict: 'santri_id,semester,tahun_ajaran');
